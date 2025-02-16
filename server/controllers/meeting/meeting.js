@@ -40,26 +40,27 @@ const index = async (req, res) => {
 
         // If 'createBy' is passed as a query parameter, ensure it is a valid ObjectId
         if (query.createBy) {
-            query.createBy = new mongoose.Types.ObjectId(query.createBy);
+            query.createdBy = new mongoose.Types.ObjectId(query.createBy);
         }
 
         // Use aggregate to fetch meeting details with joined data (Contacts, Leads, User)
         const result = await MeetingHistory.aggregate([
-            { $match: query },
             {
+                // Lookup for the 'Contact' collection and populate 'attendes' field
                 $lookup: {
-                    from: 'Leads',
-                    localField: 'attendesLead',
+                    from: 'Contacts', // Name of the collection (not model)
+                    localField: 'attendes',
                     foreignField: '_id',
-                    as: 'attendesLeadRef'
+                    as: 'attendesNames'
                 }
             },
             {
+                // Lookup for the 'Lead' collection and populate 'attendesLead' field
                 $lookup: {
-                    from: 'Contacts',
-                    localField: 'attendes',
+                    from: 'Leads', // Name of the collection (not model)
+                    localField: 'attendesLead',
                     foreignField: '_id',
-                    as: 'attendesRef'
+                    as: 'attendesLeadNames'
                 }
             },
             {
@@ -71,30 +72,47 @@ const index = async (req, res) => {
                 }
             },
             { $unwind: { path: '$users', preserveNullAndEmptyArrays: true } },
-            { $unwind: { path: '$attendesRef', preserveNullAndEmptyArrays: true } },
-            { $unwind: { path: '$attendesLeadRef', preserveNullAndEmptyArrays: true } },
+            // Handle empty arrays for 'attendes'
+            {
+                $unwind: {
+                    path: '$attendesRef',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            // Handle empty arrays for 'attendesLead'
+            {
+                $unwind: {
+                    path: '$attendesLeadRef',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
             { $match: { 'users.deleted': false } },
             {
                 $addFields: {
-                    createByName: { $concat: ['$users.firstName', ' ', '$users.lastName'] },
-                    attendesNames: {
-                        $map: {
-                            input: '$attendesRef',
-                            as: 'contact',
-                            in: { $concat: ['$$contact.firstName', ' ', '$$contact.lastName'] }
-                        }
-                    },
-                    attendesLeadNames: {
-                        $map: {
-                            input: '$attendesLeadRef',
-                            as: 'lead',
-                            in: '$$lead.leadName'
-                        }
-                    }
+                    createdByName: { $concat: ['$users.firstName', ' ', '$users.lastName'] },
+
                 }
             },
-            { $project: { attendesRef: 0, attendesLeadRef: 0, users: 0 } }
-        ]);
+            {
+                // Project to extract only the necessary fields (names of contacts and leads)
+                $project: {
+                    _id: 1,
+                    agenda: 1,
+                    dateTime: 1,
+                    location: 1,
+                    related: 1,
+                    notes: 1,
+                    createdBy: 1,
+                    deleted: 1,
+                    createdByName: 1,
+                    timestamp: 1,
+                    attendes: 1,
+                    attendesLead: 1,
+                    'attendesNames.fullName': 1, // Assuming 'name' is the field for the contact name
+                    'attendesLeadNames.leadName': 1 // Assuming 'name' is the field for the lead name
+                }
+            }
+        ])
 
         res.status(200).json(result);
     } catch (err) {
@@ -111,25 +129,29 @@ const view = async (req, res) => {
         // Find meeting by ID
         let result = await MeetingHistory.findOne({ _id: meetingId });
 
+
+
         if (!result) return res.status(404).json({ message: 'No data found for this meeting.' });
 
         // Aggregate data for the meeting
         let response = await MeetingHistory.aggregate([
             { $match: { _id: result._id } },
             {
+                // Lookup for the 'Contact' collection and populate 'attendes' field
                 $lookup: {
-                    from: 'Contacts',
+                    from: 'Contacts', // Name of the collection (not model)
                     localField: 'attendes',
                     foreignField: '_id',
-                    as: 'attendesRef'
+                    as: 'attendesNames'
                 }
             },
             {
+                // Lookup for the 'Lead' collection and populate 'attendesLead' field
                 $lookup: {
-                    from: 'Leads',
+                    from: 'Leads', // Name of the collection (not model)
                     localField: 'attendesLead',
                     foreignField: '_id',
-                    as: 'attendesLeadRef'
+                    as: 'attendesLeadNames'
                 }
             },
             {
@@ -141,30 +163,49 @@ const view = async (req, res) => {
                 }
             },
             { $unwind: { path: '$users', preserveNullAndEmptyArrays: true } },
-            { $unwind: { path: '$attendesRef', preserveNullAndEmptyArrays: true } },
-            { $unwind: { path: '$attendesLeadRef', preserveNullAndEmptyArrays: true } },
+            // Handle empty arrays for 'attendes'
+            {
+                $unwind: {
+                    path: '$attendesRef',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            // Handle empty arrays for 'attendesLead'
+            {
+                $unwind: {
+                    path: '$attendesLeadRef',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
             { $match: { 'users.deleted': false } },
             {
                 $addFields: {
-                    createByName: { $concat: ['$users.firstName', ' ', '$users.lastName'] },
-                    attendesNames: {
-                        $map: {
-                            input: '$attendesRef',
-                            as: 'contact',
-                            in: { $concat: ['$$contact.firstName', ' ', '$$contact.lastName'] }
-                        }
-                    },
-                    attendesLeadNames: {
-                        $map: {
-                            input: '$attendesLeadRef',
-                            as: 'lead',
-                            in: '$$lead.leadName'
-                        }
-                    }
+                    createdByName: { $concat: ['$users.firstName', ' ', '$users.lastName'] },
+
                 }
             },
-            { $project: { attendesRef: 0, attendesLeadRef: 0, users: 0 } }
-        ]);
+            {
+                // Project to extract only the necessary fields (names of contacts and leads)
+                $project: {
+                    _id: 1,
+                    agenda: 1,
+                    dateTime: 1,
+                    location: 1,
+                    related: 1,
+                    notes: 1,
+                    createBy: 1,
+                    deleted: 1,
+                    createdByName: 1,
+                    timestamp: 1,
+                    attendes: 1,
+                    attendesLead: 1,
+                    'attendesNames.fullName': 1, // Assuming 'name' is the field for the contact name
+                    'attendesLeadNames.leadName': 1 // Assuming 'name' is the field for the lead name
+                }
+            }
+        ])
+
+
 
         res.status(200).json(response[0]);
     } catch (err) {
@@ -172,6 +213,7 @@ const view = async (req, res) => {
         res.status(400).json({ error: 'Failed to fetch meeting', details: err.message });
     }
 };
+
 
 // Delete a single meeting by ID
 const deleteOne = async (req, res) => {

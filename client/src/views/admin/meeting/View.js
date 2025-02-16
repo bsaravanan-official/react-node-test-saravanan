@@ -142,13 +142,13 @@ const View = () => {
                                     </GridItem>
                                     <GridItem colSpan={{ base: 2, md: 1 }}>
                                         <Text fontSize="sm" fontWeight="bold" color={'blackAlpha.900'}> Attendes </Text>
-                                        {data?.related === 'Contact' && contactAccess?.view ? data?.attendes && data?.attendes.map((item) => {
+                                        {data?.related === 'Contact' && contactAccess?.view ? data?.attendesNames && data?.attendesNames.map((item) => {
                                             return (
                                                 <Link to={`/contactView/${item._id}`}>
-                                                    <Text color='brand.600' sx={{ '&:hover': { color: 'blue.500', textDecoration: 'underline' } }}>{item.firstName + ' ' + item.lastName}</Text>
+                                                    <Text color='brand.600' sx={{ '&:hover': { color: 'blue.500', textDecoration: 'underline' } }}>{item.fullName}</Text>
                                                 </Link>
                                             )
-                                        }) : data?.related === 'Lead' && leadAccess?.view ? data?.attendesLead && data?.attendesLead.map((item) => {
+                                        }) : data?.related === 'Lead' && leadAccess?.view ? data?.attendesLeadNames && data?.attendesLeadNames.map((item) => {
                                             return (
                                                 <Link to={`/leadView/${item._id}`}>
                                                     <Text color='brand.600' sx={{ '&:hover': { color: 'blue.500', textDecoration: 'underline' } }}>{item.leadName}</Text>
@@ -156,7 +156,7 @@ const View = () => {
                                             )
                                         }) : data?.related === 'contact' ? data?.attendes && data?.attendes.map((item) => {
                                             return (
-                                                <Text color='blackAlpha.900' >{item.firstName + ' ' + item.lastName}</Text>
+                                                <Text color='blackAlpha.900' >{item.fullName}</Text>
                                             )
                                         }) : data?.related === 'lead' ? data?.attendesLead && data?.attendesLead.map((item) => {
                                             return (
